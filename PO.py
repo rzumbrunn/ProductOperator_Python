@@ -525,34 +525,59 @@ class PO:
 
         return obj, id_sp
 
-    def jc(self, sp_cell, q_cell):
+    def jc(self, sp_cell, q_cell, axis=3):
+        """
+        jc applies a J-coupling evolution to all spins mentioned in sp for the amount of q along the axis axis.
+
+        Parameters
+        ----------
+        sp_cell : list[spins]
+            List of spins to apply the J-coupling to (ex: ['IS'])
+        q_cell : list[amounts]
+            List of amounts to apply the J-coupling by (ex: [pi/2])
+        axis : int, optional
+            Axis to apply J coupling along (1,2,3) = (x,y,z), by default 3
+            If value is -1 apply along all
+
+        Returns
+        -------
+        _type_
+            _description_
+        """
 
         for ii in range(len(sp_cell)):
             sp = sp_cell[ii]
             q = q_cell[ii]
-            self = PO.jc1(self, sp, q)[0] #jc1 outputs two arugements as a tuple
+            if axis == -1:
+                for i in range(3):
+                    self = PO.jc1(self, sp, q, axis=i)[0] #jc1 outputs two arugements as a tuple
+            else:
+                self = PO.jc1(self, sp, q, axis=axis)[0] #jc1 outputs two arugements as a tuple
 
         return self
 
-    def jc1(self, sp, q):
+    def jc1H(self, sp, q, axis=3):
+        """
+        Generates a Hamiltonian for a J-coupling evolution.
+        """
         basis_org = self.basis
         spin_no = self.spin_no
         spin_label_cell = self.spin_label
         s0 = self.logs
         disp0 = self.disp
         self = PO.set_basis(self,'xyz')
-        axis_tmp = np.matrix([0]*spin_no)
+        axis_tmp = np.matrix([0]*spin_no) # creates a nx1 vector
 
 
         if isinstance(sp, list): # This condiion means that sp is a list of Int, i.e., sp = [1,2]
             sp_tmp = ''
-            for ii in range(2):
+            for ii in range(len(sp)):
                 if PO.__index_switch == 1: # 1-based index
                     id_tmp = sp[ii] - 1 # 1-based index => 0-based index
                 else:
                     id_tmp = sp[ii] # 0-based index
 
-                axis_tmp[0, id_tmp] = 3
+                axis_tmp[0, id_tmp] = axis # set the element 0,id_tmp to 3 in the matrix
                 sp_tmp = sp_tmp + spin_label_cell[id_tmp]
 
             id_sp = sp
@@ -564,7 +589,7 @@ class PO:
                 spin_label_tmp = spin_label_cell[ii]
                 if sp.find(spin_label_tmp) >= 0:
                     id_tmp = ii
-                    axis_tmp[0, id_tmp] = 3
+                    axis_tmp[0, id_tmp] = axis
                     ii_int += 1
                     id_sp[ii_int] = id_tmp
             sp_tmp = sp
@@ -572,7 +597,25 @@ class PO:
         coef_tmp = sym.Matrix([1])
 
         H = PO(self.spin_no, self.spin_label, axis_tmp, coef_tmp, 'xyz')
-        obj = PO.UrhoUinv_mt(self, H, q)
+    
+    def jc1_network(self, sp, q, axis=3):
+        """
+        jc1_network applies a J-coupling evolution to a network of spins. (more thatn 2)
+
+        Parameters
+        ----------
+        sp : _type_
+            _description_
+        q : _type_
+            _description_
+        axis : int, optional
+            _description_, by default 3
+        """
+        pass
+
+    def jc1(self, sp, q, axis = 3):
+        H = PO.jc1H(self, sp, q, axis) # get the hamiltonian
+        obj = PO.UrhoUinv_mt(self, H, q) # evolves rho under H
         obj = PO.set_basis(obj, basis_org)
         obj.disp = disp0
 
